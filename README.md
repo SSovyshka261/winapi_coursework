@@ -1,4 +1,4 @@
-# winapi_coursework
+# WinApi C++ coursework
 
 This repository is created for the course work of the student Savchenko Bohdan university "Kharkiv National University of Radioelectronics".
 
