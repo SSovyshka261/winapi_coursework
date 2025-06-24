@@ -118,7 +118,6 @@ string GetUserNameString() {
     DWORD size = UNLEN + 1;
     GetUserNameW(name, &size);
 
-    // Переводим в std::string
     wstring ws(name);
     return string(ws.begin(), ws.end());
 }
@@ -147,24 +146,22 @@ void RunConverter() {
     STARTUPINFO si = { sizeof(si) };
     PROCESS_INFORMATION pi;
 
-    // Относительный путь к программе
     LPCWSTR exePath = L"convertor.exe";
 
-    // Создаем копию строки для CreateProcess, так как она модифицирует командную строку
     wchar_t cmdLine[MAX_PATH];
     wcscpy_s(cmdLine, exePath);
 
     BOOL result = CreateProcess(
-        NULL,       // Имя модуля
-        cmdLine,    // Командная строка
+        NULL,     
+        cmdLine,    
         NULL,       
         NULL,       
-        FALSE,      // Наследование дескрипторов
-        0,          // Флаги создания
+        FALSE,     
+        0,         
         NULL,       
-        NULL,       // Текущий каталог
-        &si,        // Информация о запуске
-        &pi         // Информация о процессе
+        NULL,   
+        &si,       
+        &pi        
     );
 
     if (!result) {
@@ -179,8 +176,8 @@ void RunConverter() {
 
 bool CopyFileToRoot(const wstring& sourceFolder, const wstring& filename) {
     wstring src = sourceFolder + L"\\" + filename;
-    wstring dst = filename; // в корень проекта
-    return CopyFileW(src.c_str(), dst.c_str(), FALSE); // перезаписать, если нужно
+    wstring dst = filename; 
+    return CopyFileW(src.c_str(), dst.c_str(), FALSE); 
 }
 
 void SelectImageAndLoad() {
@@ -191,22 +188,18 @@ void SelectImageAndLoad() {
     if (pidl != NULL) {
         wchar_t selectedPath[MAX_PATH];
         if (SHGetPathFromIDList(pidl, selectedPath)) {
-            // Копируем нужные JSON-файлы
             CopyFileToRoot(selectedPath, L"bitmap.json");
             CopyFileToRoot(selectedPath, L"colors.json");
             CopyFileToRoot(selectedPath, L"size.json");
 
-            // Перезагружаем данные
             pixels = loadPixels("bitmap.json");
             colors = loadColors("colors.json");
             canvasSize = loadSize("size.json");
 
-            // Обновляем окно
             InvalidateRect(hwnd, NULL, TRUE);
             UpdateWindow(hwnd);
 
 			if (!history.empty()) {
-				// Очищаем историю, если была перезагрузка
 				while (!history.empty()) {
 					history.pop();
 				}
@@ -231,7 +224,6 @@ void ShowStatsWindow() {
         string nameStr = it.value()["name"];
         int done = it.value()["images_done"];
 
-        // Конвертация string -> wstring
         wstring name(nameStr.begin(), nameStr.end());
 
         text += L"👤 " + name + L" — " + to_wstring(done) + L" Зображень\n";
@@ -255,7 +247,6 @@ void DrawGrid(HDC hdc) {
         int y2 = (row + 1) * cellSize;
 
         if (i < (int)pixels.size()) {
-            // Заливка цветом, если пользователь закрасил
             if (pixels[i].colored) {
                 HBRUSH hBrush = CreateSolidBrush(RGB(pixels[i].r, pixels[i].g, pixels[i].b));
                 RECT rect = { x1, y1, x2, y2 };
@@ -263,14 +254,12 @@ void DrawGrid(HDC hdc) {
                 DeleteObject(hBrush);
             }
             else {
-                // Белый фон, если не закрашено
                 HBRUSH hBrush = CreateSolidBrush(RGB(255, 255, 255));
                 RECT rect = { x1, y1, x2, y2 };
                 FillRect(hdc, &rect, hBrush);
                 DeleteObject(hBrush);
             }
 
-            // Рисуем цифру (color_index)
             int colorIndex = pixels[i].color_index;
             wstring wText = to_wstring(colorIndex);
             const wchar_t* text = wText.c_str();
@@ -313,7 +302,6 @@ void DrawPalette(HDC hdc) {
         SelectObject(hdc, hOldBrush);
         DeleteObject(hBrush);
 
-        // Рисуем индекс цвета под квадратом
         wstring wText = to_wstring(color.index);
         SIZE textSize;
         GetTextExtentPoint32(hdc, wText.c_str(), wcslen(wText.c_str()), &textSize);
@@ -327,7 +315,6 @@ void DrawPalette(HDC hdc) {
     }
 }
 
-// Обработка клика по палитре — меняем selectedColor
 void OnPaletteClick(int mouseX, int mouseY) {
     const int colorBoxSize = 30;
     const int padding = 5;
@@ -352,7 +339,6 @@ void OnPaletteClick(int mouseX, int mouseY) {
 void ClearGrid() {
     for (auto& pixel : pixels) {
         pixel.colored = false;
-        // Можно вернуть r,g,b к исходным цветам из color_index:
         auto it = find_if(colors.begin(), colors.end(),
             [&](const Color& c) { return c.index == pixel.color_index; });
         if (it != colors.end()) {
@@ -361,7 +347,6 @@ void ClearGrid() {
             pixel.b = it->b;
         }
     }
-    // Очистка истории
     while (!history.empty()) history.pop();
 
     InvalidateRect(hwnd, NULL, TRUE);
@@ -416,7 +401,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         int x = LOWORD(lp);
         int y = HIWORD(lp);
 
-        // Проверяем, клик по палитре или по сетке
         int paletteTop = canvasSize.height * cellSize + 20;
         if (y >= paletteTop) {
             OnPaletteClick(x, y);
@@ -479,7 +463,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         break;
     }
     case WM_HOTKEY:
-        if (wp == 1) { // ID горячей клавиши
+        if (wp == 1) {
             UndoLastPixel();
         }
         break;
@@ -531,7 +515,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
         return -1;
     }
 
-    // Загрузка данных до основного цикла
     pixels = loadPixels("bitmap.json");
     colors = loadColors("colors.json");
     canvasSize = loadSize("size.json");
